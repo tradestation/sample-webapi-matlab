@@ -32,6 +32,9 @@ function [] = tradestationwebapi()
     quote = getQuote('aapl',token);
     disp(quote);
     
+    disp('Getting spy barchart stream');
+    displayStreamingBarcharts('spy','1','Minute','10',token);
+    
     function [url] = getAuthorizationUrl()
         url = strcat(BASEURL, ...
         sprintf( ...
@@ -65,6 +68,47 @@ function [] = tradestationwebapi()
         url = [url '?' queryString];
         response = char(urlread2(url));
         quote = loadjson(response);
+    end
+
+    function [] = displayStreamingBarcharts(symbol,interval, ...
+            intervaltype,barsback,token)
+        import java.net.URL;
+        import java.io.*;
+        
+        url = strcat(BASEURL,sprintf('stream/barchart/%s/%s/%s/%s', ...
+            symbol,interval,intervaltype,barsback));
+        params = {'oauth_token',token.access_token};
+        queryString = http_paramsToString(params,1);
+        theURL = URL([],[url '?' queryString], ...
+            sun.net.www.protocol.https.Handler);
+        
+        % Open http connection:
+        httpConn = theURL.openConnection;
+        httpConn.setRequestProperty('Content-Type', ...
+            'application/x-www-form-urlencoded');
+        
+        % open the connection:
+        try
+            inputStream = BufferedReader(InputStreamReader( ...
+                httpConn.getInputStream));
+        catch ME
+            error(ME.message);
+        end
+        
+        % start reading from the connection:
+        sLine = inputStream.readLine;
+        
+        while (~isempty(sLine))
+            if ~(sLine.isEmpty)
+                % convert the response from json string to a MATLAB type.
+                response = loadjson(char(sLine));
+                disp(response);
+            end
+            sLine = inputStream.readLine;
+        end
+        
+        % close the connection:
+        inputStream.close;
     end
 end
 
